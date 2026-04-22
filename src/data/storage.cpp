@@ -43,6 +43,7 @@ void openLogFile() {
   logger.file = LittleFS.open(logger.PATH, "a");
   if (logger.file) {
     logger.isOpen = true;
+    logger.cached_size = logger.file.size();
   } else {
     Serial.println("[CSV] Falha ao abrir arquivo");
   }
@@ -65,7 +66,14 @@ void rotateIfNeeded() {
     if (millis() - lastCheck < 10000) return;
     lastCheck = millis();
 
-    size_t size = fileSize();
+    static uint32_t lastSync = 0;
+
+    if (millis() - lastSync > 60000) { 
+      logger.cached_size = fileSize();
+      lastSync = millis();
+    }
+
+    size_t size = logger.cached_size;
 
     if (size >= MAX_BYTES) {
       closeLogFile();
@@ -81,6 +89,7 @@ void rotateIfNeeded() {
       }
 
       headerChecked = false;
+      logger.cached_size = 0;
     }
 } 
 
@@ -149,7 +158,7 @@ void appendCsvRow() {
 
   sanitize(ackSafe);
 
-  logger.file.printf(
+  int written = logger.file.printf(
       "%s,%lu,%.3f,%.1f,%s,%s,%.1f,%.2f,%.3f,%.3f,%.3f,%.3f,%.1f,%u,%u,%.0f,%.0f,%d,%s,%u,%lu,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%s\n",
       timeStamp,
       now,
@@ -192,5 +201,9 @@ void appendCsvRow() {
       logger.file.flush();
       lastFlush = millis();
       lines = 0;
+  }
+
+  if (written > 0 && written < 512) { 
+    logger.cached_size += written;
   }
 }

@@ -55,5 +55,6 @@ struct Log {
 
   File file;
   bool isOpen = false;
+  size_t cached_size = 0;
 };
 extern Log logger;

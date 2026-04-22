@@ -4,6 +4,7 @@
 #include <comm/ble.h>
 #include <config/pins.h>
 #include <comm/lora.h>
+#include <comm/mqtt.h>
 
 // Detecta erros
 uint8_t lora_crc8(const uint8_t* data, uint8_t len) {
@@ -67,7 +68,7 @@ void txTelemetry() {
   if (data.override_enabled)  frame.flags |= (1 << 0);
   if (ble.mode)               frame.flags |= (1 << 1);
   if (ble.clientConnected)    frame.flags |= (1 << 2);
-  //if (mqtt.connected())       frame.flags |= (1 << 3);
+  if (mqtt.connected())       frame.flags |= (1 << 3);
   if (logger.enabled)         frame.flags |= (1 << 4);
 
   frame.crc = lora_crc8((uint8_t*)&frame, sizeof(frame) - 1);
