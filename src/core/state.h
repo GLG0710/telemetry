@@ -1,9 +1,9 @@
 #pragma once
 #include <Arduino.h>	
 #include <LittleFS.h>
-
+		
 struct TelemetryData {
-	float volts = 0.0f;
+	float volts = 0.0f; // Talvez mudar para int dependendo do desempenho
 	float pct = 0.0f;
   	float temp = NAN;
   	float humi = NAN;
@@ -11,8 +11,8 @@ struct TelemetryData {
   	float rpm = 0.0f;
   	float speed_kmh = 0.0f;
 
-  	float current_bat_a = 0.0f;
-  	float current_mot_a = 0.0f;
+  	float current_bat_a = 0.0f; // Talvez mudar para int dependendo do desempenho
+  	float current_mot_a = 0.0f; // Talvez mudar para int dependendo do desempenho
 
   	float min_v = 0.80f;
   	float max_v = 4.20f;

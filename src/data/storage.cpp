@@ -169,7 +169,7 @@ void appendCsvRow() {
       data.override_pct,
       data.max_pct,
       wifiRSSI(),
-      ctrlGetSource(ctrl.src),
+      ctrlGetSource(),
       logger.enabled ? 1 : 0,
       logger.interval_ms,
       config.pwm_hz,

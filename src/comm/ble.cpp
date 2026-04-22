@@ -2,10 +2,9 @@
 #include <NimBLEDevice.h>
 #include <ArduinoJSON.h>
 
-
 #include "ble.h"
-#include "core/control.h"
-#include "core/state.h"
+#include "./core/control.h"
+#include "./core/state.h"
 
 class MyServerCallbacks : public NimBLEServerCallbacks {
 public: 
@@ -19,8 +18,6 @@ public:
       ble.clientConnected = false;
       ble.mtu = 23;
       Serial.printf("[BLE] Client desconnected (reason=%d)\n", reason);
-      
-      delay(50);
       NimBLEDevice::startAdvertising();
     }
 };
@@ -37,9 +34,10 @@ private:
         
         if (mode == 0) {
           data.override_enabled = false;
-          ctrl.src = CTRL_LOCAL;
+          controlSetSource(LOCAL);
+        } else {
+          ctrl.last_ms = millis();
         }
-        ctrl.last_ms = millis();
         return true;
     }
     
@@ -51,8 +49,7 @@ private:
       ble.pct = pct;
       data.override_enabled = true;
       data.override_pct = pct;
-      ctrl.src = CTRL_BLE;
-      ctrl.last_ms = millis();
+      controlSetSource(BLE);
       return true;
     }
     
@@ -93,8 +90,7 @@ public:
 
       if (newMode == 0) {
         data.override_enabled = false;
-        ctrl.src      = CTRL_LOCAL;
-        ctrl.last_ms  = millis();
+        controlSetSource(LOCAL);
         Serial.println("[BLE] Local Mode activated");
       } else {
         Serial.printf("[BLE] BLE Mode %d activated\n", newMode);
@@ -108,9 +104,7 @@ public:
       ble.pct               = pct;
       data.override_enabled = true;
       data.override_pct     = ble.pct;
-      ctrl.src              = CTRL_BLE;
-      ctrl.last_ms          = millis();
-
+      controlSetSource(BLE);
       Serial.printf("[BLE] Override PCT: %d%%\n", pct);
     }
   }
@@ -158,7 +152,6 @@ void setupBLE() {
   adv->setName("EWolf-Telemetry");
   adv->setMinInterval(32);
   adv->setMaxInterval(48);
-  adv->start();
 
   if (adv->start()) {
     Serial.println("[BLE] Advertising inicialized as 'EWolf-Telemetry'");
@@ -194,7 +187,7 @@ void sendSpeedo() {
   char buffer[160];
   size_t len = serializeJson(doc, buffer, sizeof(buffer));
 
-  if (len < 0 || len >= sizeof(buffer)) {
+  if (len <= 0 || len >= sizeof(buffer)) {
     Serial.println("[BLE] Serializing Json Error");
     return;
   }

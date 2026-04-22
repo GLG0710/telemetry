@@ -1,15 +1,15 @@
 #include "control.h"
-#include "core/state.h"
+#include "state.h"
 
 void controlSetSource(ControlSource src) {
   ctrl.src = src;
   ctrl.last_ms = millis();
 }
 
-const char* ctrlGetSource(ControlSource src){
-  switch(src){
-    case CTRL_BLE:  return "BLE";
-    case CTRL_MQTT: return "MQTT";
+const char* ctrlGetSource(){
+  switch(ctrl.src){
+    case BLE:  return "BLE";
+    case MQTT: return "MQTT";
     default:        return "LOCAL";
   }
 }
@@ -17,10 +17,10 @@ const char* ctrlGetSource(ControlSource src){
 void controlUpdateTimeout() {
   unsigned long now = millis();
 
-  if (ctrl.src != CTRL_LOCAL &&
-      (now - ctrl.last_ms) > ctrl.TIMEOUT_MS) {
+  if (ctrl.src != LOCAL &&
+      (now - ctrl.last_ms) > Control::TIMEOUT_MS) {
 
-    ctrl.src = CTRL_LOCAL;
+    ctrl.src = LOCAL;
     data.override_enabled = false;
   }
-}
+} 
