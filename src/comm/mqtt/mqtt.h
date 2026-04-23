@@ -28,6 +28,4 @@ extern PubSubClient mqtt;
 
 // ===================== API =====================
 void setupMqtt();
-void ensureMqtt();
-void mqttLoop();
-void mqttPublishTelemetry();
+void loopMqtt();

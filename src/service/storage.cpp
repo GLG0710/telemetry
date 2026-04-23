@@ -2,8 +2,11 @@
 #include <WiFi.h>
 
 #include "storage.h"
-#include "core/control.h"
-#include "core/state.h"
+#include "controller/control.h"
+#include "state/data.h"
+#include "state/ack.h"
+#include "config/adv_config.h"
+#include "logger.h"
 
 // Utilitários
 size_t fileSize() {
@@ -30,7 +33,6 @@ void createCSVHeader() {
 
 static bool headerChecked = false;
 
-
 // Controle de arquivo
 void openLogFile() {
   if (logger.isOpen) return;
@@ -56,7 +58,6 @@ void closeLogFile() {
     logger.isOpen = false;
   }
 }
-
 
 // Rotação de arquivo
 void rotateIfNeeded() {
@@ -92,7 +93,6 @@ void rotateIfNeeded() {
       logger.cached_size = 0;
     }
 } 
-
 
 // Formatadores
 void formatTimestamp(char* buf, size_t size) {
@@ -133,8 +133,7 @@ int wifiRSSI() {
     return (WiFi.status()==WL_CONNECTED) ? WiFi.RSSI() : 0;
 }
 
-
-// CSV Append (fragmentar mais)
+// CSV Append (talvez fragmentar mais)
 void appendCsvRow() {
   if (!logger.enabled) return;
 

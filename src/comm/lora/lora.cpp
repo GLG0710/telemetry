@@ -1,10 +1,11 @@
 #include <Arduino.h>
 
-#include <core/state.h>
-#include <comm/ble.h>
+#include <state/data.h>
+#include <comm/ble/ble.h>
 #include <config/pins.h>
-#include <comm/lora.h>
-#include <comm/mqtt.h>
+#include <comm/lora/lora.h>
+#include <comm/mqtt/mqtt.h>
+#include <service/logger.h>
 
 // Detecta erros
 uint8_t lora_crc8(const uint8_t* data, uint8_t len) {
@@ -19,7 +20,6 @@ uint8_t lora_crc8(const uint8_t* data, uint8_t len) {
   return crc;
 }
 
-// Recebe telemetria
 bool rxTelemetry() {
   if (Pins::SerialLora.available() < sizeof(LoraTelemetryFrame)) 
     return false;
@@ -54,7 +54,6 @@ bool rxTelemetry() {
 
 static uint8_t loraSeq = 0;
 
-// Envia telemetria
 void txTelemetry() {
   LoraTelemetryFrame frame;
 
@@ -74,4 +73,14 @@ void txTelemetry() {
   frame.crc = lora_crc8((uint8_t*)&frame, sizeof(frame) - 1);
 
   Pins::SerialLora.write((uint8_t*)&frame, sizeof(frame));
+}
+
+void loopLora() {
+  static uint32_t last = 0;
+  uint32_t now = millis();
+
+  if (now - last < 100) return;
+  last = now;
+
+  txTelemetry();
 }

@@ -1,10 +1,12 @@
 #include "mqtt.h"
 #include <ArduinoJson.h>
-#include <LittleFS.h>
 
-#include "../core/state.h"
-#include "../core/control.h"
-#include "../config/pins.h"
+#include "state/data.h"
+#include "state/ack.h"
+#include "controller/control.h"
+#include "config/pins.h"
+#include "config/adv_config.h"
+#include "service/logger.h"
 
 // ===================== CONFIG =====================
 const MQTTConfig MQTT_CONFIG = {
@@ -77,59 +79,73 @@ static void handleThrottle(JsonDocument& doc) {
 
 static void handleConfig(JsonDocument& doc) {
   // -------- TELEMETRIA --------
-  if (doc["max_pct"].is<float>())
-    data.max_pct = constrain(doc["max_pct"], 0.0f, 100.0f);
+  if (doc["max_pct"].is<float>()) {
+    float max_pct = doc["max_pct"].as<float>();
+    data.max_pct = constrain(max_pct, 0.0f, 100.0f);
+  }
 
   if (doc["min_v"].is<float>())
-    data.min_v = doc["min_v"];
+    data.min_v = doc["min_v"].as<float>();
 
   if (doc["max_v"].is<float>())
-    data.max_v = doc["max_v"];
+    data.max_v = doc["max_v"].as<float>();
 
   if (doc["wheel_cm"].is<float>())
-    data.wheel_cm = doc["wheel_cm"];
+    data.wheel_cm = doc["wheel_cm"].as<float>();
 
   if (doc["ppr"].is<int>())
-    data.ppr = (uint8_t)doc["ppr"];
+    data.ppr = (uint8_t)doc["ppr"].as<int>();
 
   if (doc["poll_ms"].is<int>())
-    data.poll_ms = (uint32_t)doc["poll_ms"];
+    data.poll_ms = (uint32_t)doc["poll_ms"].as<int>();
 
   // -------- LOG --------
   if (doc["log_enabled"].is<bool>())
-    logger.enabled = doc["log_enabled"];
+    logger.enabled = doc["log_enabled"].as<bool>();
 
   if (doc["log_iv_ms"].is<int>()) {
-    uint32_t ms = doc["log_iv_ms"];
+    uint32_t ms = doc["log_iv_ms"].as<int>();
     logger.interval_ms = constrain(ms, 100UL, 60000UL);
   }
 
-  if (doc["log_clear"].is<bool>() && doc["log_clear"]) {
-    if (LittleFS.exists(logger.PATH))     LittleFS.remove(logger.PATH);
-    if (LittleFS.exists(logger.PATH_OLD)) LittleFS.remove(logger.PATH_OLD);
+  if (doc["log_clear"].is<bool>() && doc["log_clear"].as<bool>()) {
+    clearLogs(); 
+  }
+  // -------- CONFIG AVANÇADA --------
+  if (doc["pwm_hz"].is<float>()) {
+    float pwm_hz = doc["pwm_hz"].as<float>();
+    config.pwm_hz = constrain(pwm_hz, 100.0f, 8000.0f);
   }
 
-  // -------- CONFIG AVANÇADA --------
-  if (doc["pwm_hz"].is<float>())
-    config.pwm_hz = constrain(doc["pwm_hz"], 100.0f, 8000.0f);
+  if (doc["start_min_pct"].is<float>()) {
+    float start_min_pct = doc["start_min_pct"].as<float>();
+    config.start_min_pct = constrain(start_min_pct, 0.0f, 40.0f);
+  }
 
-  if (doc["start_min_pct"].is<float>())
-    config.start_min_pct = constrain(doc["start_min_pct"], 0.0f, 40.0f);
+  if (doc["rapid_ms"].is<float>()) {
+    float rapid_ms = doc["rapid_ms"].as<float>();
+    config.rapid_ms = constrain(rapid_ms, 50.0f, 1500.0f);
+  }
 
-  if (doc["rapid_ms"].is<float>())
-    config.rapid_ms = constrain(doc["rapid_ms"], 50.0f, 1500.0f);
+  if (doc["rapid_up"].is<float>()) {
+    float rapid_up = doc["rapid_up"].as<float>();
+    config.rapid_up = constrain(rapid_up, 10.0f, 400.0f);
+  }
 
-  if (doc["rapid_up"].is<float>())
-    config.rapid_up = constrain(doc["rapid_up"], 10.0f, 400.0f);
+  if (doc["slew_up"].is<float>()) {
+    float slew_up = doc["slew_up"].as<float>();
+    config.slew_up = constrain(slew_up, 5.0f, 200.0f);
+  }
 
-  if (doc["slew_up"].is<float>())
-    config.slew_up = constrain(doc["slew_up"], 5.0f, 200.0f);
+  if (doc["slew_dn"].is<float>()) {
+    float slew_dn = doc["slew_dn"].as<float>();
+    config.slew_dn = constrain(slew_dn, 5.0f, 300.0f);
+  }
 
-  if (doc["slew_dn"].is<float>())
-    config.slew_dn = constrain(doc["slew_dn"], 5.0f, 300.0f);
-
-  if (doc["zero_timeout_ms"].is<float>())
-    config.zero_timeout_ms = constrain(doc["zero_timeout_ms"], 50.0f, 2000.0f);
+  if (doc["zero_timeout_ms"].is<float>()) {
+    float zero_timeout_ms = doc["zero_timeout_ms"].as<float>();
+    config.zero_timeout_ms = constrain(zero_timeout_ms, 50.0f, 2000.0f);
+  }
 
   snprintf(ack.last, sizeof(ack.last), "CONFIG_UPDATED");
   ack.timestamp = millis();
@@ -152,7 +168,7 @@ static void mqttCallback(char* topic, byte* payload, unsigned int length) {
   }
 
   // JSON
-  StaticJsonDocument<512> doc;
+  JsonDocument doc;
   if (deserializeJson(doc, msg)) {
     Serial.println("[MQTT] JSON error");
     return;
@@ -231,40 +247,11 @@ void ensureMqtt() {
   }
 }
 
-// ===================== LOOP =====================
-void mqttLoop() {
-    static bool wasConnected = false;
-    bool wifiOk = (WiFi.status() == WL_CONNECTED);
-
-    if (!wifiOk && wasConnected) {
-        mqtt.disconnect();
-    }
-
-    wasConnected = wifiOk;
-
-    ensureMqtt();
-    mqtt.loop();
-    controlUpdateTimeout();
-
-    uint32_t now = millis();
-
-    if (now - lastMqtt < MQTT_IV_MS) return;
-
-    lastMqtt = now;
-
-    mqttPublishTelemetry();
-
-    if (ack.last[0] != '\0' && (now - ack.timestamp) > 2000) {
-        ack.last[0] = '\0';
-    }
-}
-
-
 // ===================== PUBLISH =====================
 void mqttPublishTelemetry() {
     if (!mqtt.connected()) return;
 
-    StaticJsonDocument<768> doc;
+    JsonDocument doc;
 
     // -------- DADOS --------
     doc["volts"]     = data.volts;
@@ -295,7 +282,7 @@ void mqttPublishTelemetry() {
     doc["override_pct"]     = data.override_pct;
     doc["max_pct"]          = data.max_pct;
 
-    doc["src"]     = ctrlGetSource(); // já que você criou isso
+    doc["src"]     = ctrlGetSource();
     doc["poll_ms"] = data.poll_ms;
 
     // -------- LOGGER --------
@@ -329,5 +316,30 @@ void mqttPublishTelemetry() {
 
     if (!ok) {
       Serial.printf("[MQTT] publish FAIL, len = %u\n", len);
+    }
+}
+
+// ===================== LOOP =====================
+void loopMqtt() {
+    static bool wasConnected = false;
+    bool wifiOk = (WiFi.status() == WL_CONNECTED);
+
+    if (!wifiOk && wasConnected) {
+        mqtt.disconnect();
+    }
+
+    wasConnected = wifiOk;
+
+    ensureMqtt();
+    mqtt.loop();
+
+    uint32_t now = millis();
+    if (now - lastMqtt < MQTT_IV_MS) return;
+    lastMqtt = now;
+
+    mqttPublishTelemetry();
+
+    if (ack.last[0] != '\0' && (now - ack.timestamp) > 2000) {
+        ack.last[0] = '\0';
     }
 }

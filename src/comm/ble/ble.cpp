@@ -3,8 +3,10 @@
 #include <ArduinoJSON.h>
 
 #include "ble.h"
-#include "./core/control.h"
-#include "./core/state.h"
+#include "controller/control.h"
+#include "state/data.h"
+
+BLEState ble;
 
 class MyServerCallbacks : public NimBLEServerCallbacks {
 public: 
@@ -110,6 +112,37 @@ public:
   }
 };
 
+bool sendSpeedo() {
+  if (!ble.clientConnected || !ble.txChar) return false;
+  
+  JsonDocument doc;
+  
+  doc["mode"] = ble.mode;
+  doc["speed_kmh"] = data.speed_kmh;
+  doc["rpm"] = data.rpm;
+  doc["pct"] = data.pct;
+  
+  doc["temp"] = isnan(data.temp) ? 0.0f : data.temp;
+  doc["current"] = isnan(data.current_bat_a) ? 0.0f : data.current_bat_a;
+  
+  doc["override"] = data.override_enabled;
+  if (data.override_enabled) {
+    doc["override_pct"] = data.override_pct;
+  }
+
+  char buffer[160];
+  size_t len = serializeJson(doc, buffer, sizeof(buffer));
+
+  if (len <= 0 || len >= sizeof(buffer)) {
+    Serial.println("[BLE] Serializing Json Error");
+    return false;
+  }
+
+  ble.txChar->setValue((uint8_t*)buffer, len);
+  ble.txChar->notify();
+  return true;
+}
+
 void setupBLE() {
   Serial.println("[BLE] Initializing...");
 
@@ -145,7 +178,7 @@ void setupBLE() {
     NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE
   );
 
-  pService->start();
+  //pService->start();
 
   NimBLEAdvertising* adv = NimBLEDevice::getAdvertising();
   adv->addServiceUUID(serviceUUID);
@@ -160,44 +193,18 @@ void setupBLE() {
   }
 }
 
-void sendSpeedo() {
-  static uint32_t lastSend = 0;
+void loopBLE() {
+  static uint32_t last = 0;
   uint32_t now = millis();
-    
-  if (now - lastSend < 100) return;
-  lastSend = now;
 
-  if (!ble.clientConnected || !ble.txChar) return;
-  
-  JsonDocument doc;
-  
-  doc["mode"] = ble.mode;
-  doc["speed_kmh"] = data.speed_kmh;
-  doc["rpm"] = data.rpm;
-  doc["pct"] = data.pct;
-  
-  doc["temp"] = isnan(data.temp) ? 0.0f : data.temp;
-  doc["current"] = isnan(data.current_bat_a) ? 0.0f : data.current_bat_a;
-  
-  doc["override"] = data.override_enabled;
-  if (data.override_enabled) {
-    doc["override_pct"] = data.override_pct;
-  }
+  if (now - last < 100) return;
+  last = now;
 
-  char buffer[160];
-  size_t len = serializeJson(doc, buffer, sizeof(buffer));
-
-  if (len <= 0 || len >= sizeof(buffer)) {
-    Serial.println("[BLE] Serializing Json Error");
-    return;
-  }
-
-  ble.txChar->setValue((uint8_t*)buffer, len);
-  ble.txChar->notify();
+  bool sent = sendSpeedo();
 
   static uint32_t lastDebug = 0;
-  if (now - lastDebug > 5000) {
-    Serial.printf("[BLE TX] %s\n", buffer);
+  if (sent && now - lastDebug > 5000) {
+    Serial.printf("[BLE TX] Packed Sent\n");
     lastDebug = now;
   }
 }

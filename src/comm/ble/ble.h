@@ -15,5 +15,5 @@ struct BLEState {
 };
 extern BLEState ble;
 
-void sendSpeedo();
 void setupBLE();
+void loopBLE();

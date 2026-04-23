@@ -1,5 +1,7 @@
 #include "control.h"
-#include "state.h"
+#include "state/data.h"
+
+Control ctrl;
 
 void controlSetSource(ControlSource src) {
   ctrl.src = src;
@@ -10,7 +12,7 @@ const char* ctrlGetSource(){
   switch(ctrl.src){
     case BLE:  return "BLE";
     case MQTT: return "MQTT";
-    default:        return "LOCAL";
+    default:   return "LOCAL";
   }
 }
 
@@ -22,5 +24,5 @@ void controlUpdateTimeout() {
 
     ctrl.src = LOCAL;
     data.override_enabled = false;
-  }
+  } 
 } 

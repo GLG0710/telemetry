@@ -12,5 +12,4 @@ struct __attribute__((packed)) LoraTelemetryFrame {
   uint8_t  crc;
 };
 
-bool rxTelemetry();
-void txTelemetry();
+void loopLora();

@@ -14,5 +14,5 @@ namespace Pins {
     constexpr int LORA_TX = 17;
     constexpr uint32_t LORA_BAUD = 9600;
 
-    void init();
+    void setupUart();
 }
