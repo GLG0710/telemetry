@@ -2,10 +2,12 @@
 
 #include <state/data.h>
 #include <comm/ble/ble.h>
-#include <config/pins.h>
+#include <config/uart.h>
 #include <comm/lora/lora.h>
 #include <comm/mqtt/mqtt.h>
 #include <service/logger.h>
+
+// Long Range, responsável pela comunicação a longa distânica
 
 // Detecta erros
 uint8_t lora_crc8(const uint8_t* data, uint8_t len) {
@@ -21,12 +23,12 @@ uint8_t lora_crc8(const uint8_t* data, uint8_t len) {
 }
 
 bool rxTelemetry() {
-  if (Pins::SerialLora.available() < sizeof(LoraTelemetryFrame)) 
+  if (Uart::Lora.available() < sizeof(LoraTelemetryFrame)) 
     return false;
   
   LoraTelemetryFrame frame;
 
-  uint8_t received = Pins::SerialLora.readBytes((uint8_t*)&frame, sizeof(LoraTelemetryFrame));
+  uint8_t received = Uart::Lora.readBytes((uint8_t*)&frame, sizeof(LoraTelemetryFrame));
   
   if (received != sizeof(LoraTelemetryFrame)) 
     return false;
@@ -43,8 +45,8 @@ bool rxTelemetry() {
   data.current_bat_a = frame.ibatt_ma / 1000.0f;
   
   data.override_enabled = frame.flags & (1 << 0);
-  ble.mode = (frame.flags & (1 << 1)) ? 1 : 0;
-  ble.clientConnected = frame.flags & (1 << 2);
+  Ble::state.mode = (frame.flags & (1 << 1)) ? 1 : 0;
+  Ble::state.clientConnected = frame.flags & (1 << 2);
   
   Serial.printf("[LoRa RX] RPM=%u V=%.1fA I=%.1fA seq=%u\n",
     frame.rpm, data.volts, data.current_bat_a, frame.seq);
@@ -65,17 +67,18 @@ void txTelemetry() {
 
   frame.flags = 0;
   if (data.override_enabled)  frame.flags |= (1 << 0);
-  if (ble.mode)               frame.flags |= (1 << 1);
-  if (ble.clientConnected)    frame.flags |= (1 << 2);
-  if (mqtt.connected())       frame.flags |= (1 << 3);
-  if (logger.enabled)         frame.flags |= (1 << 4);
+  if (Ble::state.mode)               frame.flags |= (1 << 1);
+  if (Ble::state.clientConnected)    frame.flags |= (1 << 2);
+  if (Mqtt::mqtt.connected())       frame.flags |= (1 << 3);
+  if (Log::logger.enabled)         frame.flags |= (1 << 4);
 
   frame.crc = lora_crc8((uint8_t*)&frame, sizeof(frame) - 1);
 
-  Pins::SerialLora.write((uint8_t*)&frame, sizeof(frame));
+  Uart::Lora.write((uint8_t*)&frame, sizeof(frame));
 }
 
-void loopLora() {
+namespace Lora {
+  void loop() {
   static uint32_t last = 0;
   uint32_t now = millis();
 
@@ -83,4 +86,5 @@ void loopLora() {
   last = now;
 
   txTelemetry();
+}
 }

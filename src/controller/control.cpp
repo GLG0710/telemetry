@@ -1,28 +1,30 @@
 #include "control.h"
 #include "state/data.h"
 
-Control ctrl;
+namespace Control {
+  State state;
 
-void controlSetSource(ControlSource src) {
-  ctrl.src = src;
-  ctrl.last_ms = millis();
-}
+  void setSource(Source src) {
+    state.src = src;
+    state.last_ms = millis();
+  }
 
-const char* ctrlGetSource(){
-  switch(ctrl.src){
+const char* getSource(){
+  switch(state.src){
     case BLE:  return "BLE";
     case MQTT: return "MQTT";
     default:   return "LOCAL";
   }
 }
 
-void controlUpdateTimeout() {
+void loop() {
   unsigned long now = millis();
 
-  if (ctrl.src != LOCAL &&
-      (now - ctrl.last_ms) > Control::TIMEOUT_MS) {
+  if (state.src != LOCAL &&
+      (now - state.last_ms) > TIMEOUT_MS) {
 
-    ctrl.src = LOCAL;
+    state.src = LOCAL;
     data.override_enabled = false;
   } 
+} 
 } 

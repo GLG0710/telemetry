@@ -2,21 +2,23 @@
 
 #include <Arduino.h>
 
-enum ControlSource {
-  LOCAL,
-  BLE,
-  MQTT
-};
+namespace Control {
+  enum Source {
+    LOCAL,
+    BLE,
+    MQTT
+  };
 
-struct Control {
-  ControlSource src = LOCAL;          
-  unsigned long last_ms = 0;
-  
+  struct State {
+    Source src = LOCAL;          
+    unsigned long last_ms = 0;
+  };
+  extern State state;
+
   static constexpr unsigned long TIMEOUT_MS = 2000;  
-};
-extern Control ctrl;
 
-// funções de controle
-void controlSetSource(ControlSource src);
-const char* ctrlGetSource();
-void controlUpdateTimeout();
+  // funções de controle
+  void setSource(Source src);
+  const char* getSource();
+  void loop();
+}

@@ -4,35 +4,37 @@
 #include "state/data.h"
 #include "state/ack.h"
 #include "controller/control.h"
-#include "config/pins.h"
+#include "config/uart.h"
 #include "config/adv_config.h"
 #include "service/logger.h"
 
-// ===================== CONFIG =====================
-const MQTTConfig MQTT_CONFIG = {
-  "broker.mqtt-dashboard.com",
-  1883,
-  "EWolfTelemetryS3",
-  {
-    "pb/telemetry/json",
-    "pb/cmd/motor",
-    "pb/status",
-    "pb/cmd/throttle",
-    "pb/cmd/config"
-  }
-};
+// Message Queuing Telemetry Transport, protocolo de comunicação em rede
 
-// ===================== CLIENT =====================
-WiFiClient espClient;
-PubSubClient mqtt(espClient);
+// Instância do espClient, Config e mqtt
+namespace Mqtt {
+  const Config CONFIG = {
+    "broker.mqtt-dashboard.com",
+    1883,
+    "EWolfTelemetryS3",
+    {
+      "pb/telemetry/json",
+      "pb/cmd/motor",
+      "pb/status",
+      "pb/cmd/throttle",
+      "pb/cmd/config"
+    }
+  };
+  
+  WiFiClient espClient;
+  PubSubClient mqtt(espClient);
+}
 
 static unsigned long lastMqtt = 0;
 static constexpr unsigned long MQTT_IV_MS = 1000;
 
-
-// ===================== AUX =====================
+// Auxiliares
 static void sendCmd(const String& s){
-  Pins::SerialArd.println(s);
+  Uart::Arduino.println(s);
 }
 
 static void handleMotor(const char* msg) {
@@ -60,7 +62,7 @@ static void handleThrottle(JsonDocument& doc) {
     data.override_enabled = true;
     data.override_pct = constrain(pct, 0, 100);
 
-    controlSetSource(MQTT);
+    Control::setSource(Control::MQTT);
 
     snprintf(ack.last, sizeof(ack.last), "THROTTLE");
     ack.timestamp = millis();
@@ -69,7 +71,7 @@ static void handleThrottle(JsonDocument& doc) {
 
   if (doc["auto"].is<bool>() && doc["auto"]) {
     data.override_enabled = false;
-    controlSetSource(LOCAL);
+    Control::setSource(Control::LOCAL);
 
     snprintf(ack.last, sizeof(ack.last), "AUTO");
     ack.timestamp = millis();
@@ -101,15 +103,15 @@ static void handleConfig(JsonDocument& doc) {
 
   // -------- LOG --------
   if (doc["log_enabled"].is<bool>())
-    logger.enabled = doc["log_enabled"].as<bool>();
+    Log::logger.enabled = doc["log_enabled"].as<bool>();
 
   if (doc["log_iv_ms"].is<int>()) {
     uint32_t ms = doc["log_iv_ms"].as<int>();
-    logger.interval_ms = constrain(ms, 100UL, 60000UL);
+    Log::logger.interval_ms = constrain(ms, 100UL, 60000UL);
   }
 
   if (doc["log_clear"].is<bool>() && doc["log_clear"].as<bool>()) {
-    clearLogs(); 
+    Log::clear(); 
   }
   // -------- CONFIG AVANÇADA --------
   if (doc["pwm_hz"].is<float>()) {
@@ -151,7 +153,7 @@ static void handleConfig(JsonDocument& doc) {
   ack.timestamp = millis();
 }
 
-// ===================== CALLBACK =====================
+// Callback
 static void mqttCallback(char* topic, byte* payload, unsigned int length) {
   char msg[256];
   unsigned int len = min(length, sizeof(msg)-1);
@@ -162,7 +164,7 @@ static void mqttCallback(char* topic, byte* payload, unsigned int length) {
   Serial.printf("[MQTT RX] %s | %s\n", topic, msg);
 
   // MOTOR
-  if (strcmp(topic, MQTT_CONFIG.topics.cmd_motor) == 0) {
+  if (strcmp(topic, Mqtt::CONFIG.topics.cmd_motor) == 0) {
     handleMotor(msg);
     return;
   }
@@ -175,39 +177,21 @@ static void mqttCallback(char* topic, byte* payload, unsigned int length) {
   }
 
   // THROTTLE
-  if (strcmp(topic, MQTT_CONFIG.topics.cmd_throttle) == 0) {
+  if (strcmp(topic, Mqtt::CONFIG.topics.cmd_throttle) == 0) {
     handleThrottle(doc);
     return;
   }
 
-  // CONFIG (mantive igual, só limpei)
-  if (strcmp(topic, MQTT_CONFIG.topics.cmd_config) == 0) {
+  // CONFIG
+  if (strcmp(topic, Mqtt::CONFIG.topics.cmd_config) == 0) {
     handleConfig(doc);
     return;
   }
 }
 
-// ===================== SETUP =====================
-void setupMqtt() {
-    mqtt.setServer(MQTT_CONFIG.host, MQTT_CONFIG.port);
-    mqtt.setCallback(mqttCallback);
-    mqtt.setBufferSize(2048);
-
-    Serial.println("[MQTT] Configuração:");
-    Serial.printf("  Broker : %s:%d\n", MQTT_CONFIG.host, MQTT_CONFIG.port);
-    Serial.printf("  Client : %s\n", MQTT_CONFIG.id_base);
-
-    Serial.println("  Tópicos:");
-    Serial.printf("    PUB  : %s\n", MQTT_CONFIG.topics.tlm_json);
-    Serial.printf("    SUB  : %s\n", MQTT_CONFIG.topics.cmd_motor);
-    Serial.printf("    SUB  : %s\n", MQTT_CONFIG.topics.cmd_throttle);
-    Serial.printf("    SUB  : %s\n", MQTT_CONFIG.topics.cmd_config);
-    Serial.printf("    STAT : %s\n", MQTT_CONFIG.topics.status);
-}
-
-// ===================== CONNECTION =====================
+// Conexão
 void ensureMqtt() {
-    if (mqtt.connected()) return;
+    if (Mqtt::mqtt.connected()) return;
 
     static unsigned long lastTry = 0;
     static int lastErr = -999;
@@ -218,26 +202,26 @@ void ensureMqtt() {
     lastTry = millis();
 
     char clientId[64];
-    snprintf(clientId, sizeof(clientId), "%s-%llX", MQTT_CONFIG.id_base, ESP.getEfuseMac());
+    snprintf(clientId, sizeof(clientId), "%s-%llX", Mqtt::CONFIG.id_base, ESP.getEfuseMac());
 
     if (firstTry) {
       Serial.println("[MQTT] Connecting...");
       firstTry = false;
     }
 
-    if (mqtt.connect(clientId, MQTT_CONFIG.topics.status, 0, true, "offline")) {
+    if (Mqtt::mqtt.connect(clientId, Mqtt::CONFIG.topics.status, 0, true, "offline")) {
       Serial.println("[MQTT] Connected");
 
-      mqtt.publish(MQTT_CONFIG.topics.status, "online", true);
-      mqtt.subscribe(MQTT_CONFIG.topics.cmd_motor);
-      mqtt.subscribe(MQTT_CONFIG.topics.cmd_throttle);
-      mqtt.subscribe(MQTT_CONFIG.topics.cmd_config);
+      Mqtt::mqtt.publish(Mqtt::CONFIG.topics.status, "online", true);
+      Mqtt::mqtt.subscribe(Mqtt::CONFIG.topics.cmd_motor);
+      Mqtt::mqtt.subscribe(Mqtt::CONFIG.topics.cmd_throttle);
+      Mqtt::mqtt.subscribe(Mqtt::CONFIG.topics.cmd_config);
 
       lastErr = -999;
       firstTry = true;
       lastErrLog = 0;
     } else {
-      int err = mqtt.state();
+      int err = Mqtt::mqtt.state();
 
     if (err != lastErr || millis() - lastErrLog > 60000) {
         Serial.printf("[MQTT] Connection failed, state=%d\n", err);
@@ -247,9 +231,9 @@ void ensureMqtt() {
   }
 }
 
-// ===================== PUBLISH =====================
+// Publicar
 void mqttPublishTelemetry() {
-    if (!mqtt.connected()) return;
+    if (!Mqtt::mqtt.connected()) return;
 
     JsonDocument doc;
 
@@ -282,13 +266,13 @@ void mqttPublishTelemetry() {
     doc["override_pct"]     = data.override_pct;
     doc["max_pct"]          = data.max_pct;
 
-    doc["src"]     = ctrlGetSource();
+    doc["src"]     = Control::getSource();
     doc["poll_ms"] = data.poll_ms;
 
     // -------- LOGGER --------
-    doc["log_enabled"] = logger.enabled;
-    doc["log_iv_ms"]   = logger.interval_ms;
-    doc["log_size"]    = logger.cached_size;
+    doc["log_enabled"] = Log::logger.enabled;
+    doc["log_iv_ms"]   = Log::logger.interval_ms;
+    doc["log_size"]    = Log::logger.cached_size;
 
     // -------- CONFIG AVANÇADA --------
     doc["pwm_hz"]          = config.pwm_hz;
@@ -312,15 +296,35 @@ void mqttPublishTelemetry() {
     }
 
     // -------- PUBLISH --------
-    bool ok = mqtt.publish(MQTT_CONFIG.topics.tlm_json, buffer, len);
+    bool ok = Mqtt::mqtt.publish(Mqtt::CONFIG.topics.tlm_json, buffer, len);
 
     if (!ok) {
       Serial.printf("[MQTT] publish FAIL, len = %u\n", len);
     }
 }
 
-// ===================== LOOP =====================
-void loopMqtt() {
+// Loop e Setup
+namespace Mqtt {  
+  // Setup
+  void setup() {
+    mqtt.setServer(CONFIG.host, CONFIG.port);
+    mqtt.setCallback(mqttCallback);
+    mqtt.setBufferSize(2048);
+
+    Serial.println("[MQTT] Configuration:");
+    Serial.printf("  Broker : %s:%d\n", CONFIG.host, Mqtt::CONFIG.port);
+    Serial.printf("  Client : %s\n", CONFIG.id_base);
+
+    Serial.println("  Topics:");
+    Serial.printf("    PUB  : %s\n", CONFIG.topics.tlm_json);
+    Serial.printf("    SUB  : %s\n", CONFIG.topics.cmd_motor);
+    Serial.printf("    SUB  : %s\n", CONFIG.topics.cmd_throttle);
+    Serial.printf("    SUB  : %s\n", CONFIG.topics.cmd_config);
+    Serial.printf("    STAT : %s\n", CONFIG.topics.status);
+  }
+
+  // Loop
+  void loop() {
     static bool wasConnected = false;
     bool wifiOk = (WiFi.status() == WL_CONNECTED);
 
@@ -342,4 +346,5 @@ void loopMqtt() {
     if (ack.last[0] != '\0' && (now - ack.timestamp) > 2000) {
         ack.last[0] = '\0';
     }
+  }
 }

@@ -12,4 +12,6 @@ struct __attribute__((packed)) LoraTelemetryFrame {
   uint8_t  crc;
 };
 
-void loopLora();
+namespace Lora {
+  void loop();
+}

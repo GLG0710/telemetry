@@ -3,7 +3,7 @@
 #include <WiFi.h>
 #include <WiFiManager.h>
 
-#include "config/pins.h"
+#include "config/uart.h"
 #include "comm/ble/ble.h"
 #include "comm/lora/lora.h"
 #include "comm/mqtt/mqtt.h"
@@ -27,15 +27,10 @@ void setupTime() {
 void setup() {
   Serial.begin(115200);
   Serial.setTimeout(50);
-  Serial.println("\n[BOOT] Inicializando sistema...");
+  Serial.println("\n[BOOT] Initializing system...");
 
-  Pins::setupUart();
-
-  if (LittleFS.begin(true)) {
-    Serial.println("[FS] LittleFS OK");
-  } else {
-    Serial.println("[FS] ERRO ao iniciar LittleFS");
-  }
+  Uart::setup();
+  Log::setup();
 
   WiFi.mode(WIFI_STA);
   WiFiManager manager;
@@ -43,44 +38,30 @@ void setup() {
   manager.setTimeout(120);
   manager.setDebugOutput(false);
 
-  Serial.println("[WiFi] Iniciando conexão...");
+  Serial.println("======================================");
+  Serial.println("[WiFi] Initializing Connection...");
   manager.autoConnect("Telemetry-Setup");
-  Serial.printf("[WiFi] Conectado | IP: %s\n", WiFi.localIP().toString().c_str());
-
-  Serial.println("======================================");
-  Serial.print (" WiFi IP:  "); Serial.println(WiFi.localIP()); 
-  Serial.printf(" MQTT pub: %s \n", MQTT_CONFIG.topics.tlm_json);
-  Serial.printf(" MQTT sub: %s \n", MQTT_CONFIG.topics.cmd_motor);
-  Serial.printf(" MQTT sub: %s \n", MQTT_CONFIG.topics.cmd_throttle);
-  Serial.printf(" MQTT sub: %s \n", MQTT_CONFIG.topics.cmd_config);
-  Serial.println(" UART Arduino em Serial1 (GPIO9 RX, GPIO10 TX)");
+  Serial.printf("[WiFi] Connected | IP: %s\n", WiFi.localIP().toString().c_str());
+  Serial.println("UART Arduino in Serial1 (GPIO9 RX, GPIO10 TX)");
   Serial.println("======================================");
 
-  mqtt.setServer(MQTT_CONFIG.host, MQTT_CONFIG.port);
-  //mqtt.setCallback(mqttCallback);
-  mqtt.setBufferSize(2048);
-
-  setupMqtt();  
-  //setupOTA();    // Atualização over-the-air
+  Mqtt::setup();  
+  //setupOTA();
   setupTime();   // Sincronização de tempo
-  setupBLE();    // Bluetooth Low Energy
+  Ble::setup();   
 
-  // ==================== FINALIZAÇÃO ====================
   SerialDiagnostic::serialCheckStartMs = millis();
 
-  Serial.println("[BOOT] Sistema pronto!\n");
-  Serial.println("================================================");
-  Serial.println("Sistema operacional. Aguardando comandos...");
-  Serial.println("================================================\n");
+  Serial.println("[BOOT] System Ready!\n");
 }
 
 void diagnostic() {
   if (!SerialDiagnostic::reportedSerialStatus) {
-    unsigned long nowMs = millis();
-    if (nowMs - SerialDiagnostic::serialCheckStartMs > SerialDiagnostic::SERIAL_CHECK_WINDOW_MS) {
+    unsigned long now = millis();
+    if (now - SerialDiagnostic::serialCheckStartMs > SerialDiagnostic::SERIAL_CHECK_WINDOW_MS) {
         Serial.println(SerialDiagnostic::haveSerialData
-            ? "DBG: Recebendo telemetria do Arduino (Serial1 OK)"
-            : "DBG: Nenhuma telemetria recebida do Arduino nos primeiros 5s.");
+            ? "DBG: Receiving telemetry from Arduino (Serial1 OK)"
+            : "DBG: No telemetry received from Arduino in the first 5s");
         SerialDiagnostic::reportedSerialStatus = true;
     }
   }
@@ -89,18 +70,16 @@ void diagnostic() {
 void loop(){
   //ArduinoOTA.handle();
 
-  while (Pins::SerialArd.available()) {
-    protocolFeedByte(Pins::SerialArd.read());
+  while (Uart::Arduino.available()) {
+    protocolFeedByte(Uart::Arduino.read());
   }
 
   // timeout serial inicial
   diagnostic();
 
-  // Control
-  controlUpdateTimeout();
-
-  loopMqtt();
-  loopLogger();
-  loopBLE();
-  loopLora();
+  Control::loop();
+  Mqtt::loop();
+  Log::loop();
+  Ble::loop();
+  Lora::loop();
 }

@@ -3,17 +3,19 @@
 #include <Arduino.h>
 #include <NimBLEDevice.h>
 
-struct BLEState {
-  NimBLECharacteristic* rxChar = nullptr;
-  NimBLECharacteristic* txChar = nullptr;
+namespace Ble {
+  struct State {
+    NimBLECharacteristic* rxChar = nullptr;
+    NimBLECharacteristic* txChar = nullptr;
 
-  bool clientConnected = false;
-  uint16_t mtu = 23;
-  
-  int pct = 0;
-  int mode = 0;
-};
-extern BLEState ble;
+    bool clientConnected = false;
+    uint16_t mtu = 23; // Maximum Transmission Unit, Valor padrão 23 bytes (20 bytes úteis)
+    
+    int pct = 0; //Powercast Tags, monitoramento de sensorers em tempo real
+    int mode = 0;
+  };
+  extern State state;
 
-void setupBLE();
-void loopBLE();
+  void setup();
+  void loop();
+}

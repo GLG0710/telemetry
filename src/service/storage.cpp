@@ -8,9 +8,11 @@
 #include "config/adv_config.h"
 #include "logger.h"
 
+// Armazenamento Local
+
 // Utilitários
 size_t fileSize() {
-  File f = LittleFS.open(logger.PATH, "r"); 
+  File f = LittleFS.open(Log::logger.PATH, "r"); 
   if (!f) return 0;
 
   size_t size = f.size(); 
@@ -19,9 +21,9 @@ size_t fileSize() {
 }
 
 void createCSVHeader() {
-  if (LittleFS.exists(logger.PATH) && fileSize() > 0) return;
+  if (LittleFS.exists(Log::logger.PATH) && fileSize() > 0) return;
 
-  File f = LittleFS.open(logger.PATH, "a");
+  File f = LittleFS.open(Log::logger.PATH, "a");
   if (!f) {
     Serial.println("[CSV] Erro ao criar header");
     return;
@@ -35,34 +37,32 @@ static bool headerChecked = false;
 
 // Controle de arquivo
 void openLogFile() {
-  if (logger.isOpen) return;
+  if (Log::logger.isOpen) return;
 
   if (!headerChecked) {
     createCSVHeader();
     headerChecked = true;
   }
 
-  logger.file = LittleFS.open(logger.PATH, "a");
-  if (logger.file) {
-    logger.isOpen = true;
-    logger.cached_size = logger.file.size();
+  Log::logger.file = LittleFS.open(Log::logger.PATH, "a");
+  if (Log::logger.file) {
+    Log::logger.isOpen = true;
+    Log::logger.cached_size = Log::logger.file.size();
   } else {
     Serial.println("[CSV] Falha ao abrir arquivo");
   }
 }
 
 void closeLogFile() {
-  if (logger.isOpen) {
-    logger.file.flush();
-    logger.file.close();
-    logger.isOpen = false;
+  if (Log::logger.isOpen) {
+    Log::logger.file.flush();
+    Log::logger.file.close();
+    Log::logger.isOpen = false;
   }
 }
 
 // Rotação de arquivo
 void rotateIfNeeded() {
-    const size_t MAX_BYTES = 1024UL * 1024UL;
-
     static uint32_t lastCheck = 0;
     if (millis() - lastCheck < 10000) return;
     lastCheck = millis();
@@ -70,27 +70,28 @@ void rotateIfNeeded() {
     static uint32_t lastSync = 0;
 
     if (millis() - lastSync > 60000) { 
-      logger.cached_size = fileSize();
+      Log::logger.cached_size = fileSize();
       lastSync = millis();
     }
 
-    size_t size = logger.cached_size;
+    const size_t MAX_BYTES = 1024UL * 1024UL;
+    size_t size = Log::logger.cached_size;
 
     if (size >= MAX_BYTES) {
       closeLogFile();
 
-      if (LittleFS.exists(logger.PATH_OLD) && !LittleFS.remove(logger.PATH_OLD)) {
+      if (LittleFS.exists(Log::logger.PATH_OLD) && !LittleFS.remove(Log::logger.PATH_OLD)) {
         Serial.println("[CSV] Falha ao remover arquivo antigo"); 
         return;
       }
 
-      if (!LittleFS.rename(logger.PATH, logger.PATH_OLD)) {
+      if (!LittleFS.rename(Log::logger.PATH, Log::logger.PATH_OLD)) {
         Serial.println("[CSV] Falha ao rotacionar arquivo");
         return;
       }
 
       headerChecked = false;
-      logger.cached_size = 0;
+      Log::logger.cached_size = 0;
     }
 } 
 
@@ -135,12 +136,12 @@ int wifiRSSI() {
 
 // CSV Append (talvez fragmentar mais)
 void appendCsvRow() {
-  if (!logger.enabled) return;
+  if (!Log::logger.enabled) return;
 
   rotateIfNeeded();
 
   openLogFile();
-  if (!logger.isOpen) return;
+  if (!Log::logger.isOpen) return;
 
   char timeStamp[32];
   char tempBuffer[16];
@@ -157,7 +158,7 @@ void appendCsvRow() {
 
   sanitize(ackSafe);
 
-  int written = logger.file.printf(
+  int written = Log::logger.file.printf(
       "%s,%lu,%.3f,%.1f,%s,%s,%.1f,%.2f,%.3f,%.3f,%.3f,%.3f,%.1f,%u,%u,%.0f,%.0f,%d,%s,%u,%lu,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%s\n",
       timeStamp,
       now,
@@ -177,9 +178,9 @@ void appendCsvRow() {
       data.override_pct,
       data.max_pct,
       wifiRSSI(),
-      ctrlGetSource(),
-      logger.enabled ? 1 : 0,
-      logger.interval_ms,
+      Control::getSource(),
+      Log::logger.enabled ? 1 : 0,
+      Log::logger.interval_ms,
       config.pwm_hz,
       config.start_min_pct,
       config.rapid_ms,
@@ -197,12 +198,12 @@ void appendCsvRow() {
   lines++;
 
   if (lines >= 10 || millis() - lastFlush > 5000) {
-      logger.file.flush();
+      Log::logger.file.flush();
       lastFlush = millis();
       lines = 0;
   }
 
   if (written > 0 && written < 512) { 
-    logger.cached_size += written;
+    Log::logger.cached_size += written;
   }
 }

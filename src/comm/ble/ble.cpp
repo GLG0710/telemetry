@@ -6,19 +6,22 @@
 #include "controller/control.h"
 #include "state/data.h"
 
-BLEState ble;
+// Bluetooth Low Energy, comunicação via bluetooth de curto alcance
+namespace Ble {
+  State state;
+}
 
 class MyServerCallbacks : public NimBLEServerCallbacks {
 public: 
-    void onConnect(NimBLEServer* server, NimBLEConnInfo& connInfo) override {
-      ble.clientConnected = true;
-      ble.mtu = connInfo.getMTU();
-      Serial.printf("[BLE] Client connected (MTU=%d)\n", ble.mtu);
-    }
+  void onConnect(NimBLEServer* server, NimBLEConnInfo& connInfo) override {
+    Ble::state.clientConnected = true;
+    Ble::state.mtu = connInfo.getMTU();
+    Serial.printf("[BLE] Client connected (MTU=%d)\n", Ble::state.mtu);
+  }
 
-    void onDisconnect(NimBLEServer* server, NimBLEConnInfo& connInfo, int reason) override {
-      ble.clientConnected = false;
-      ble.mtu = 23;
+  void onDisconnect(NimBLEServer* server, NimBLEConnInfo& connInfo, int reason) override {
+      Ble::state.clientConnected = false;
+      Ble::state.mtu = 23;
       Serial.printf("[BLE] Client desconnected (reason=%d)\n", reason);
       NimBLEDevice::startAdvertising();
     }
@@ -32,13 +35,13 @@ private:
     const char* modePos = strstr(data_str, "\"mode\":");
     if (modePos) {
         int mode = atoi(modePos + 7);
-        ble.mode = mode;
+        Ble::state.mode = mode;
         
         if (mode == 0) {
           data.override_enabled = false;
-          controlSetSource(LOCAL);
+          Control::setSource(Control::LOCAL);
         } else {
-          ctrl.last_ms = millis();
+          Control::state.last_ms = millis();
         }
         return true;
     }
@@ -48,10 +51,10 @@ private:
       int pct = atoi(pctPos + 6);
       pct = constrain(pct, 0, 100);
       
-      ble.pct = pct;
+      Ble::state.pct = pct;
       data.override_enabled = true;
       data.override_pct = pct;
-      controlSetSource(BLE);
+      Control::setSource(Control::BLE);
       return true;
     }
     
@@ -71,7 +74,7 @@ public:
 
     Serial.printf("[BLE RX] %s\n", s.c_str());
 
-    JsonDocument doc;
+    JsonDocument doc; 
     DeserializationError err = deserializeJson(doc, s);
 
     if (err) {
@@ -88,11 +91,11 @@ public:
     // MODO (0=local, 1+=BLE)
     if (doc["mode"].is<int>()) {
       int newMode = doc["mode"].as<int>();
-      ble.mode = newMode;
+      Ble::state.mode = newMode;
 
       if (newMode == 0) {
         data.override_enabled = false;
-        controlSetSource(LOCAL);
+        Control::setSource(Control::LOCAL);
         Serial.println("[BLE] Local Mode activated");
       } else {
         Serial.printf("[BLE] BLE Mode %d activated\n", newMode);
@@ -103,21 +106,21 @@ public:
     if (doc["pct"].is<int>()) {
       int pct = constrain(doc["pct"].as<int>(), 0, 100);
 
-      ble.pct               = pct;
+      Ble::state.pct               = pct;
       data.override_enabled = true;
-      data.override_pct     = ble.pct;
-      controlSetSource(BLE);
+      data.override_pct     = Ble::state.pct;
+      Control::setSource(Control::BLE);
       Serial.printf("[BLE] Override PCT: %d%%\n", pct);
     }
   }
 };
 
 bool sendSpeedo() {
-  if (!ble.clientConnected || !ble.txChar) return false;
+  if (!Ble::state.clientConnected || !Ble::state.txChar) return false;
   
   JsonDocument doc;
   
-  doc["mode"] = ble.mode;
+  doc["mode"] = Ble::state.mode;
   doc["speed_kmh"] = data.speed_kmh;
   doc["rpm"] = data.rpm;
   doc["pct"] = data.pct;
@@ -138,73 +141,75 @@ bool sendSpeedo() {
     return false;
   }
 
-  ble.txChar->setValue((uint8_t*)buffer, len);
-  ble.txChar->notify();
+  Ble::state.txChar->setValue((uint8_t*)buffer, len);
+  Ble::state.txChar->notify();
   return true;
 }
 
-void setupBLE() {
-  Serial.println("[BLE] Initializing...");
+namespace Ble {
+  void setup() {
+    Serial.println("[BLE] Initializing...");
 
-  NimBLEDevice::init("EWolf-Telemetry");
-  NimBLEDevice::setDeviceName("EWolf-Telemetry");
-  NimBLEDevice::setPower(ESP_PWR_LVL_P9);
-  NimBLEDevice::setMTU(128);
+    NimBLEDevice::init("EWolf-Telemetry");
+    NimBLEDevice::setDeviceName("EWolf-Telemetry");
+    NimBLEDevice::setPower(ESP_PWR_LVL_P9);
+    NimBLEDevice::setMTU(128);
 
-  NimBLEServer* pServer = NimBLEDevice::createServer();
-  pServer->setCallbacks(new MyServerCallbacks()); // NimBLE gerencia a memória
+    NimBLEServer* pServer = NimBLEDevice::createServer();
+    pServer->setCallbacks(new MyServerCallbacks()); 
 
-  static NimBLEUUID serviceUUID("6E400001-B5A3-F393-E0A9-E50E24DCCA9E");
-  static NimBLEUUID charRxUUID ("6E400002-B5A3-F393-E0A9-E50E24DCCA9E");
-  static NimBLEUUID charTxUUID ("6E400003-B5A3-F393-E0A9-E50E24DCCA9E");
+    static NimBLEUUID serviceUUID("6E400001-B5A3-F393-E0A9-E50E24DCCA9E");
+    static NimBLEUUID charRxUUID ("6E400002-B5A3-F393-E0A9-E50E24DCCA9E");
+    static NimBLEUUID charTxUUID ("6E400003-B5A3-F393-E0A9-E50E24DCCA9E");
 
-  NimBLEService* pService = pServer->createService(serviceUUID);
+    NimBLEService* pService = pServer->createService(serviceUUID);
 
-  // RX: comandos do app
-  ble.rxChar = pService->createCharacteristic(
-    charRxUUID,
-    NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR
-  );
-  ble.rxChar->setCallbacks(new MyRxCallbacks());
+    // RX: comandos do app
+    Ble::state.rxChar = pService->createCharacteristic(
+      charRxUUID,
+      NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR
+    );
+    Ble::state.rxChar->setCallbacks(new MyRxCallbacks());
 
-  // TX: telemetria para app
-  ble.txChar = pService->createCharacteristic(
-    charTxUUID,
-    NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ
-  );
+    // TX: telemetria para app
+    Ble::state.txChar = pService->createCharacteristic(
+      charTxUUID,
+      NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ
+    );
 
-  ble.txChar->createDescriptor(
-    NimBLEUUID((uint16_t)0x2902),
-    NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE
-  );
+    Ble::state.txChar->createDescriptor(
+      NimBLEUUID((uint16_t)0x2902),
+      NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE
+    );
 
-  //pService->start();
+    //pService->start();
 
-  NimBLEAdvertising* adv = NimBLEDevice::getAdvertising();
-  adv->addServiceUUID(serviceUUID);
-  adv->setName("EWolf-Telemetry");
-  adv->setMinInterval(32);
-  adv->setMaxInterval(48);
+    NimBLEAdvertising* adv = NimBLEDevice::getAdvertising();
+    adv->addServiceUUID(serviceUUID);
+    adv->setName("EWolf-Telemetry");
+    adv->setMinInterval(32);
+    adv->setMaxInterval(48);
 
-  if (adv->start()) {
-    Serial.println("[BLE] Advertising inicialized as 'EWolf-Telemetry'");
-  } else {
-    Serial.println("[BLE] ERROR: Error of inicializing advertising!");
+    if (adv->start()) {
+      Serial.println("[BLE] Advertising inicialized as 'EWolf-Telemetry'");
+    } else {
+      Serial.println("[BLE] ERROR: Error of inicializing advertising!");
+    }
   }
-}
 
-void loopBLE() {
-  static uint32_t last = 0;
-  uint32_t now = millis();
+  void loop() {
+    static uint32_t last = 0;
+    uint32_t now = millis();
 
-  if (now - last < 100) return;
-  last = now;
+    if (now - last < 100) return;
+    last = now;
 
-  bool sent = sendSpeedo();
+    bool sent = sendSpeedo();
 
-  static uint32_t lastDebug = 0;
-  if (sent && now - lastDebug > 5000) {
-    Serial.printf("[BLE TX] Packed Sent\n");
-    lastDebug = now;
+    static uint32_t lastDebug = 0;
+    if (sent && now - lastDebug > 5000) {
+      Serial.printf("[BLE TX] Packed Sent\n");
+      lastDebug = now;
+    }
   }
 }

@@ -2,6 +2,8 @@
 #include "state/data.h"
 #include "state/ack.h"
 
+// Processa e atualiza os dados recebidos
+
 static char lineBuffer[400];
 static uint16_t pos = 0;
 
@@ -23,30 +25,31 @@ static void processLine(char *line) {
   char *saveptr;
   char *tok = strtok_r(line, " ", &saveptr);
 
+  // Leitura do UART do MEGA
   while (tok) {
     char *dp = strchr(tok, ':');
     if (dp) {
       *dp = '\0';
-      char *k = tok;
-      char *v = dp + 1;
+      char *key = tok;
+      char *value = dp + 1;
 
-      float val = atof(v);
+      float val = atof(value);
 
-      if      (strcmp(k, "V") == 0)      data.volts = val;
-      else if (strcmp(k, "Pct") == 0)    data.pct = val;
-      else if (strcmp(k, "Temp") == 0)   data.temp = (strcmp(v,"NaN")==0)?NAN:val;
-      else if (strcmp(k, "Humi") == 0)   data.humi = (strcmp(v,"NaN")==0)?NAN:val;
-      else if (strcmp(k, "RPM") == 0)    data.rpm = val;
-      else if (strcmp(k, "Speed") == 0)  data.speed_kmh = val;
-      else if (strcmp(k, "I") == 0)      data.current_bat_a = val;
-      else if (strcmp(k, "IMOT") == 0)   data.current_mot_a = val;
-      else if (strcmp(k, "MIN") == 0)    data.min_v = val;
-      else if (strcmp(k, "MAX") == 0)    data.max_v = val;
-      else if (strcmp(k, "WHEEL") == 0)  data.wheel_cm = val;
-      else if (strcmp(k, "PPR") == 0)    data.ppr = (uint8_t)atoi(v);
-      else if (strcmp(k, "OVR") == 0)    data.override_enabled = atoi(v) != 0;
-      else if (strcmp(k, "OVRPCT") == 0) data.override_pct = val;
-      else if (strcmp(k, "MAXPCT") == 0) data.max_pct = val;
+      if      (strcmp(key, "V") == 0)      data.volts = val;
+      else if (strcmp(key, "Pct") == 0)    data.pct = val;
+      else if (strcmp(key, "Temp") == 0)   data.temp = (strcmp(value,"NaN")==0)?NAN:val;
+      else if (strcmp(key, "Humi") == 0)   data.humi = (strcmp(value,"NaN")==0)?NAN:val;
+      else if (strcmp(key, "RPM") == 0)    data.rpm = val;
+      else if (strcmp(key, "Speed") == 0)  data.speed_kmh = val;
+      else if (strcmp(key, "I") == 0)      data.current_bat_a = val;
+      else if (strcmp(key, "IMOT") == 0)   data.current_mot_a = val;
+      else if (strcmp(key, "MIN") == 0)    data.min_v = val;
+      else if (strcmp(key, "MAX") == 0)    data.max_v = val;
+      else if (strcmp(key, "WHEEL") == 0)  data.wheel_cm = val;
+      else if (strcmp(key, "PPR") == 0)    data.ppr = (uint8_t)atoi(value);
+      else if (strcmp(key, "OVR") == 0)    data.override_enabled = atoi(value) != 0;
+      else if (strcmp(key, "OVRPCT") == 0) data.override_pct = val;
+      else if (strcmp(key, "MAXPCT") == 0) data.max_pct = val;
     }
 
     tok = strtok_r(NULL, " ", &saveptr);
@@ -66,6 +69,6 @@ void protocolFeedByte(char c) {
   if (pos < sizeof(lineBuffer) - 1) {
     lineBuffer[pos++] = c;
   } else {
-    pos = 0; // overflow safety
+    pos = 0; 
   }
 }
