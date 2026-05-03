@@ -25,7 +25,7 @@ namespace Mqtt {
 
   // ===================== CLIENT =====================
   extern WiFiClient espClient;
-  extern PubSubClient mqtt;
+  extern PubSubClient client;
 
   // ===================== API =====================
   void setup();

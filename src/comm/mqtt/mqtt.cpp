@@ -26,7 +26,7 @@ namespace Mqtt {
   };
   
   WiFiClient espClient;
-  PubSubClient mqtt(espClient);
+  PubSubClient client(espClient);
 }
 
 static unsigned long lastMqtt = 0;
@@ -191,7 +191,7 @@ static void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
 // Conexão
 void ensureMqtt() {
-    if (Mqtt::mqtt.connected()) return;
+    if (Mqtt::client.connected()) return;
 
     static unsigned long lastTry = 0;
     static int lastErr = -999;
@@ -209,19 +209,19 @@ void ensureMqtt() {
       firstTry = false;
     }
 
-    if (Mqtt::mqtt.connect(clientId, Mqtt::CONFIG.topics.status, 0, true, "offline")) {
+    if (Mqtt::client.connect(clientId, Mqtt::CONFIG.topics.status, 0, true, "offline")) {
       Serial.println("[MQTT] Connected");
 
-      Mqtt::mqtt.publish(Mqtt::CONFIG.topics.status, "online", true);
-      Mqtt::mqtt.subscribe(Mqtt::CONFIG.topics.cmd_motor);
-      Mqtt::mqtt.subscribe(Mqtt::CONFIG.topics.cmd_throttle);
-      Mqtt::mqtt.subscribe(Mqtt::CONFIG.topics.cmd_config);
+      Mqtt::client.publish(Mqtt::CONFIG.topics.status, "online", true);
+      Mqtt::client.subscribe(Mqtt::CONFIG.topics.cmd_motor);
+      Mqtt::client.subscribe(Mqtt::CONFIG.topics.cmd_throttle);
+      Mqtt::client.subscribe(Mqtt::CONFIG.topics.cmd_config);
 
       lastErr = -999;
       firstTry = true;
       lastErrLog = 0;
     } else {
-      int err = Mqtt::mqtt.state();
+      int err = Mqtt::client.state();
 
     if (err != lastErr || millis() - lastErrLog > 60000) {
         Serial.printf("[MQTT] Connection failed, state=%d\n", err);
@@ -233,7 +233,7 @@ void ensureMqtt() {
 
 // Publicar
 void mqttPublishTelemetry() {
-    if (!Mqtt::mqtt.connected()) return;
+    if (!Mqtt::client.connected()) return;
 
     JsonDocument doc;
 
@@ -296,7 +296,7 @@ void mqttPublishTelemetry() {
     }
 
     // -------- PUBLISH --------
-    bool ok = Mqtt::mqtt.publish(Mqtt::CONFIG.topics.tlm_json, buffer, len);
+    bool ok = Mqtt::client.publish(Mqtt::CONFIG.topics.tlm_json, buffer, len);
 
     if (!ok) {
       Serial.printf("[MQTT] publish FAIL, len = %u\n", len);
@@ -307,9 +307,9 @@ void mqttPublishTelemetry() {
 namespace Mqtt {  
   // Setup
   void setup() {
-    mqtt.setServer(CONFIG.host, CONFIG.port);
-    mqtt.setCallback(mqttCallback);
-    mqtt.setBufferSize(2048);
+    client.setServer(CONFIG.host, CONFIG.port);
+    client.setCallback(mqttCallback);
+    client.setBufferSize(2048);
 
     Serial.println("[MQTT] Configuration:");
     Serial.printf("  Broker : %s:%d\n", CONFIG.host, Mqtt::CONFIG.port);
@@ -329,13 +329,13 @@ namespace Mqtt {
     bool wifiOk = (WiFi.status() == WL_CONNECTED);
 
     if (!wifiOk && wasConnected) {
-        mqtt.disconnect();
+        client.disconnect();
     }
 
     wasConnected = wifiOk;
 
     ensureMqtt();
-    mqtt.loop();
+    client.loop();
 
     uint32_t now = millis();
     if (now - lastMqtt < MQTT_IV_MS) return;

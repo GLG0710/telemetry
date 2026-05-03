@@ -69,7 +69,7 @@ void txTelemetry() {
   if (data.override_enabled)  frame.flags |= (1 << 0);
   if (Ble::state.mode)               frame.flags |= (1 << 1);
   if (Ble::state.clientConnected)    frame.flags |= (1 << 2);
-  if (Mqtt::mqtt.connected())       frame.flags |= (1 << 3);
+  if (Mqtt::client.connected())       frame.flags |= (1 << 3);
   if (Log::logger.enabled)         frame.flags |= (1 << 4);
 
   frame.crc = lora_crc8((uint8_t*)&frame, sizeof(frame) - 1);

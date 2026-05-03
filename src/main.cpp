@@ -4,14 +4,15 @@
 #include <WiFiManager.h>
 
 #include "config/uart.h"
-#include "comm/ble/ble.h"
-#include "comm/lora/lora.h"
-#include "comm/mqtt/mqtt.h"
-#include "state/data.h"
-#include "state/ack.h"
 #include "controller/control.h"
 #include "service/logger.h"
 #include "protocol/parser.h"
+#include "system/ota.h"
+
+#include "comm/ble/ble.h"
+#include "comm/lora/lora.h"
+#include "comm/mqtt/mqtt.h"
+
 
 namespace SerialDiagnostic {
   bool haveSerialData = false;
@@ -45,6 +46,7 @@ void setup() {
   Serial.println("UART Arduino in Serial1 (GPIO9 RX, GPIO10 TX)");
   Serial.println("======================================");
 
+  Ota::setup();
   Mqtt::setup();  
   //setupOTA();
   setupTime();   // Sincronização de tempo
@@ -68,8 +70,6 @@ void diagnostic() {
 }
 
 void loop(){
-  //ArduinoOTA.handle();
-
   while (Uart::Arduino.available()) {
     protocolFeedByte(Uart::Arduino.read());
   }
@@ -77,6 +77,7 @@ void loop(){
   // timeout serial inicial
   diagnostic();
 
+  Ota::loop();
   Control::loop();
   Mqtt::loop();
   Log::loop();
