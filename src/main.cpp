@@ -33,22 +33,25 @@ void setup() {
   Uart::setup();
   Log::setup();
 
-  WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_AP_STA);
   WiFiManager manager;
   manager.setConfigPortalBlocking(true);
   manager.setTimeout(120);
-  manager.setDebugOutput(false);
+  manager.setDebugOutput(true);
 
   Serial.println("======================================");
   Serial.println("[WiFi] Initializing Connection...");
-  manager.autoConnect("Telemetry-Setup");
+  if (!manager.autoConnect("Telemetry-Setup")) {
+    Serial.println("[WiFi] Connection failed, restarting...");
+    delay(3000);
+    ESP.restart();
+  }
   Serial.printf("[WiFi] Connected | IP: %s\n", WiFi.localIP().toString().c_str());
   Serial.println("UART Arduino in Serial1 (GPIO9 RX, GPIO10 TX)");
   Serial.println("======================================");
 
   Ota::setup();
   Mqtt::setup();  
-  //setupOTA();
   setupTime();   // Sincronização de tempo
   Ble::setup();   
 
@@ -77,10 +80,27 @@ void loop(){
   // timeout serial inicial
   diagnostic();
 
-  Ota::loop();
   Control::loop();
-  Mqtt::loop();
+
+  if (WiFi.status() != WL_CONNECTED) {
+    static unsigned long lastTry = 0;
+    if (millis() - lastTry > 5000) {
+      Serial.println("[WiFi] Reconnecting..."); 
+      WiFi.reconnect();
+      lastTry = millis();
+    }
+  } else {
+    Ota::loop();
+    Mqtt::loop();
+  }
+
   Log::loop();
   Ble::loop();
   Lora::loop();
+
+  static unsigned long lastStatusPrint = 0;
+  if (millis() - lastStatusPrint > 2000) {
+    Serial.printf("[WiFi] Status: %d | RSSI: %d \n", WiFi.status(), WiFi.RSSI());  // Status 3 = Conectado | Status 6 = Desconectado / RSSI, quanto menor melhor
+    lastStatusPrint = millis();
+  }
 }

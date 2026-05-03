@@ -17,12 +17,12 @@ namespace Ota {
             Serial.println("[OTA] Update started...");
         });
         
-        ArduinoOTA.onEnd([]() {
-            Serial.println("\n[OTA] Update completed! Rebooting...");
-        });
-        
         ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
             Serial.printf("[OTA] Progress: %u%%\r", (progress / (total / 100)));
+        });
+
+        ArduinoOTA.onEnd([]() {
+            Serial.println("\n[OTA] Update completed! Rebooting...");
         });
         
         ArduinoOTA.onError([](ota_error_t error) {
