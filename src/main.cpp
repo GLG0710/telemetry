@@ -17,6 +17,7 @@ void setupTime() {
     configTime(0, 0, "pool.ntp.org", "time.google.com");
 }
 
+/*
 // Ambas as variáveis e a função são para log enquanto estivermos com erro de recepção dos dados do mega, retirar tudo quando erro for resolvido (ou deixar como comentário)
 static uint32_t lastDiagnostic = 0;
 static uint32_t lastMegaData = 0;
@@ -48,6 +49,7 @@ void diagnostic() {
         }
     }
 }
+*/
 
 void setup() {
     Serial.begin(115200);
@@ -80,14 +82,14 @@ void setup() {
     Ble::setup();   
 
     Serial.println("[BOOT] System Ready!\n");
-    lastMegaData = millis();
+    //lastMegaData = millis();
 }
 
 void loop(){
-    diagnostic();
+    // diagnostic();
 
     while (Uart::Arduino.available()) {
-        lastMegaData = millis();
+        //lastMegaData = millis();
         protocolFeedByte(Uart::Arduino.read());
     }
 
