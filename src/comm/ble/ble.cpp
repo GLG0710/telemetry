@@ -148,6 +148,7 @@ bool sendSpeedo() {
 
 namespace Ble {
   void setup() {
+    Serial.println(" ");
     Serial.println("[BLE] Initializing...");
 
     NimBLEDevice::init("EWolf-Telemetry");
@@ -195,6 +196,7 @@ namespace Ble {
     } else {
       Serial.println("[BLE] ERROR: Error of inicializing advertising!");
     }
+    Serial.println(" ");
   }
 
   void loop() {

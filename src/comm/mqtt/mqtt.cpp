@@ -191,37 +191,38 @@ static void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
 // Conexão
 void ensureMqtt() {
-    if (Mqtt::client.connected()) return;
+  if (Mqtt::client.connected()) return;
 
-    static unsigned long lastTry = 0;
-    static int lastErr = -999;
-    static bool firstTry = true;
-    static unsigned long lastErrLog = 0;
+  static unsigned long lastTry = 0;
+  static int lastErr = -999;
+  static bool firstTry = true;
+  static unsigned long lastErrLog = 0;
 
-    if (millis() - lastTry < 1500) return;
-    lastTry = millis();
+  if (millis() - lastTry < 1500) return;
+  lastTry = millis();
 
-    char clientId[64];
-    snprintf(clientId, sizeof(clientId), "%s-%llX", Mqtt::CONFIG.id_base, ESP.getEfuseMac());
+  char clientId[64];
+  snprintf(clientId, sizeof(clientId), "%s-%llX", Mqtt::CONFIG.id_base, ESP.getEfuseMac());
 
-    if (firstTry) {
-      Serial.println("[MQTT] Connecting...");
-      firstTry = false;
-    }
+  Serial.println(" ");
+  if (firstTry) {
+    Serial.println("[MQTT] Connecting...");
+    firstTry = false;
+  }
 
-    if (Mqtt::client.connect(clientId, Mqtt::CONFIG.topics.status, 0, true, "offline")) {
-      Serial.println("[MQTT] Connected");
+  if (Mqtt::client.connect(clientId, Mqtt::CONFIG.topics.status, 0, true, "offline")) {
+    Serial.println("[MQTT] Connected");
 
-      Mqtt::client.publish(Mqtt::CONFIG.topics.status, "online", true);
-      Mqtt::client.subscribe(Mqtt::CONFIG.topics.cmd_motor);
-      Mqtt::client.subscribe(Mqtt::CONFIG.topics.cmd_throttle);
-      Mqtt::client.subscribe(Mqtt::CONFIG.topics.cmd_config);
+    Mqtt::client.publish(Mqtt::CONFIG.topics.status, "online", true);
+    Mqtt::client.subscribe(Mqtt::CONFIG.topics.cmd_motor);
+    Mqtt::client.subscribe(Mqtt::CONFIG.topics.cmd_throttle);
+    Mqtt::client.subscribe(Mqtt::CONFIG.topics.cmd_config);
 
-      lastErr = -999;
-      firstTry = true;
-      lastErrLog = 0;
-    } else {
-      int err = Mqtt::client.state();
+    lastErr = -999;
+    firstTry = true;
+    lastErrLog = 0;
+  } else {
+    int err = Mqtt::client.state();
 
     if (err != lastErr || millis() - lastErrLog > 60000) {
         Serial.printf("[MQTT] Connection failed, state=%d\n", err);
@@ -229,6 +230,7 @@ void ensureMqtt() {
         lastErrLog = millis();
     }
   }
+  Serial.println(" ");
 }
 
 // Publicar
@@ -311,6 +313,7 @@ namespace Mqtt {
     client.setCallback(mqttCallback);
     client.setBufferSize(2048);
 
+    Serial.println(" ");
     Serial.println("[MQTT] Configuration:");
     Serial.printf("  Broker : %s:%d\n", CONFIG.host, Mqtt::CONFIG.port);
     Serial.printf("  Client : %s\n", CONFIG.id_base);
@@ -321,6 +324,7 @@ namespace Mqtt {
     Serial.printf("    SUB  : %s\n", CONFIG.topics.cmd_throttle);
     Serial.printf("    SUB  : %s\n", CONFIG.topics.cmd_config);
     Serial.printf("    STAT : %s\n", CONFIG.topics.status);
+    Serial.println(" ");
   }
 
   // Loop

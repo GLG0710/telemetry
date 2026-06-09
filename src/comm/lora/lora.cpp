@@ -7,7 +7,7 @@
 #include <comm/mqtt/mqtt.h>
 #include <service/logger.h>
 
-// Long Range, responsável pela comunicação a longa distânica
+// Long Range, comunicação de backup
 
 // Detecta erros
 uint8_t lora_crc8(const uint8_t* data, uint8_t len) {
@@ -78,13 +78,13 @@ void txTelemetry() {
 }
 
 namespace Lora {
-  void loop() {
-  static uint32_t last = 0;
-  uint32_t now = millis();
+    void loop() {
+      static uint32_t last = 0;
+      uint32_t now = millis();
 
-  if (now - last < 100) return;
-  last = now;
+      if (now - last < 100) return;
+      last = now;
 
-  txTelemetry();
-}
+      txTelemetry();
+  }
 }

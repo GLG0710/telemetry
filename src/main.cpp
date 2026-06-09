@@ -13,94 +13,100 @@
 #include "comm/lora/lora.h"
 #include "comm/mqtt/mqtt.h"
 
-
-namespace SerialDiagnostic {
-  bool haveSerialData = false;
-  bool reportedSerialStatus = false;
-  unsigned long serialCheckStartMs = 0;
-  constexpr unsigned long SERIAL_CHECK_WINDOW_MS = 5000;
+void setupTime() {
+    configTime(0, 0, "pool.ntp.org", "time.google.com");
 }
 
-void setupTime() {
-  configTime(0, 0, "pool.ntp.org", "time.google.com");
+// Ambas as variáveis e a função são para log enquanto estivermos com erro de recepção dos dados do mega, retirar tudo quando erro for resolvido (ou deixar como comentário)
+static uint32_t lastDiagnostic = 0;
+static uint32_t lastMegaData = 0;
+
+void diagnostic() {
+    uint32_t now = millis();
+
+    if (now - lastDiagnostic >= 5000) {
+        lastDiagnostic = now;
+
+        Serial.printf(
+            "[WiFi] Status: %s | RSSI: %d\n",
+            WiFi.status() == WL_CONNECTED ? "Connected" : "Disconnected",
+            WiFi.RSSI()
+        );
+
+        uint32_t elapsed = now - lastMegaData;
+
+        if (elapsed < 5000) {
+            Serial.printf(
+                "[UART] Mega OK - last data received %lu ms ago\n",
+                elapsed
+            );
+        } else {
+            Serial.printf(
+                "[UART] WARNING - no data from Mega for %lu ms\n",
+                elapsed
+            );
+        }
+    }
 }
 
 void setup() {
-  Serial.begin(115200);
-  Serial.setTimeout(50);
-  Serial.println("\n[BOOT] Initializing system...");
+    Serial.begin(115200);
+    Serial.setTimeout(50);
+    Serial.println("\n[BOOT] Initializing system...");
 
-  Uart::setup();
-  Log::setup();
+    Uart::setup();
+    Log::setup();
 
-  WiFi.mode(WIFI_AP_STA);
-  WiFiManager manager;
-  manager.setConfigPortalBlocking(true);
-  manager.setTimeout(120);
-  manager.setDebugOutput(true);
+    WiFi.mode(WIFI_AP_STA);
+    WiFiManager manager;
+    manager.setConfigPortalBlocking(true);
+    manager.setTimeout(120);
+    manager.setDebugOutput(true);
 
-  Serial.println("======================================");
-  Serial.println("[WiFi] Initializing Connection...");
-  if (!manager.autoConnect("Telemetry-Setup")) {
-    Serial.println("[WiFi] Connection failed, restarting...");
-    delay(3000);
-    ESP.restart();
-  }
-  Serial.printf("[WiFi] Connected | IP: %s\n", WiFi.localIP().toString().c_str());
-  Serial.println("UART Arduino in Serial1 (GPIO9 RX, GPIO10 TX)");
-  Serial.println("======================================");
-
-  Ota::setup();
-  Mqtt::setup();  
-  setupTime();   // Sincronização de tempo
-  Ble::setup();   
-
-  SerialDiagnostic::serialCheckStartMs = millis();
-
-  Serial.println("[BOOT] System Ready!\n");
-}
-
-void diagnostic() {
-  if (!SerialDiagnostic::reportedSerialStatus) {
-    unsigned long now = millis();
-    if (now - SerialDiagnostic::serialCheckStartMs > SerialDiagnostic::SERIAL_CHECK_WINDOW_MS) {
-        Serial.println(SerialDiagnostic::haveSerialData
-            ? "DBG: Receiving telemetry from Arduino (Serial1 OK)"
-            : "DBG: No telemetry received from Arduino in the first 5s");
-        SerialDiagnostic::reportedSerialStatus = true;
+    Serial.println("======================================");
+    Serial.println("[WiFi] Initializing Connection...");
+    if (!manager.autoConnect("Telemetry-Setup")) {
+        Serial.println("[WiFi] Connection failed, restarting...");
+        delay(3000);
+        ESP.restart();
     }
-  }
+    Serial.printf("[WiFi] Connected | IP: %s\n", WiFi.localIP().toString().c_str());
+    Serial.println("UART Arduino in Serial1 (GPIO9 RX, GPIO10 TX)");
+    Serial.println("======================================");
+
+    Ota::setup();
+    Mqtt::setup();  
+    setupTime();   // Sincronização de tempo
+    Ble::setup();   
+
+    Serial.println("[BOOT] System Ready!\n");
+    lastMegaData = millis();
 }
 
 void loop(){
-  while (Uart::Arduino.available()) {
-    protocolFeedByte(Uart::Arduino.read());
-  }
+    diagnostic();
 
-  // timeout serial inicial
-  diagnostic();
-
-  Control::loop();
-
-  if (WiFi.status() != WL_CONNECTED) {
-    static unsigned long lastTry = 0;
-    if (millis() - lastTry > 5000) {
-      Serial.println("[WiFi] Reconnecting..."); 
-      WiFi.reconnect();
-      lastTry = millis();
+    while (Uart::Arduino.available()) {
+        lastMegaData = millis();
+        protocolFeedByte(Uart::Arduino.read());
     }
-  } else {
-    Ota::loop();
-    Mqtt::loop();
-  }
 
-  Log::loop();
-  Ble::loop();
-  Lora::loop();
+    Control::loop();
 
-  static unsigned long lastStatusPrint = 0;
-  if (millis() - lastStatusPrint > 2000) {
-    Serial.printf("[WiFi] Status: %d | RSSI: %d \n", WiFi.status(), WiFi.RSSI());  // Status 3 = Conectado | Status 6 = Desconectado / RSSI, quanto menor melhor
-    lastStatusPrint = millis();
-  }
+    // Funções dependentes de WiFi só são executadas se tiver WiFi
+    if (WiFi.status() != WL_CONNECTED) {
+        static unsigned long lastTry = 0;
+        if (millis() - lastTry > 5000) {
+        Serial.println("[WiFi] Reconnecting..."); 
+        WiFi.reconnect();
+        lastTry = millis();
+        }
+    } else {
+        Ota::loop();
+        Mqtt::loop();
+    }
+
+    Log::loop();
+    Ble::loop();
+    Lora::loop();
 }

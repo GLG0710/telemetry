@@ -4,6 +4,7 @@
 
 namespace Ota {
     void setup() {
+        Serial.println(" ");
         if (MDNS.begin("telemetry")) {
             Serial.println("[OTA] mDNS started: telemetry.local");
         } else {
@@ -38,6 +39,7 @@ namespace Ota {
         
         ArduinoOTA.begin();
         Serial.println("[OTA] Ready - Use network port in Arduino IDE");
+        Serial.println(" ");
     }
 
     void loop() {

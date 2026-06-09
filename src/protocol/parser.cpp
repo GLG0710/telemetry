@@ -35,13 +35,14 @@ static void processLine(char *line) {
 
       float val = atof(value);
 
+      // Caso mude aqui, mude no Mega tambem
       if      (strcmp(key, "V") == 0)      data.volts = val;
       else if (strcmp(key, "Pct") == 0)    data.pct = val;
       else if (strcmp(key, "Temp") == 0)   data.temp = (strcmp(value,"NaN")==0)?NAN:val;
       else if (strcmp(key, "Humi") == 0)   data.humi = (strcmp(value,"NaN")==0)?NAN:val;
       else if (strcmp(key, "RPM") == 0)    data.rpm = val;
       else if (strcmp(key, "Speed") == 0)  data.speed_kmh = val;
-      else if (strcmp(key, "I") == 0)      data.current_bat_a = val;
+      else if (strcmp(key, "IBAT") == 0)   data.current_bat_a = val;
       else if (strcmp(key, "IMOT") == 0)   data.current_mot_a = val;
       else if (strcmp(key, "MIN") == 0)    data.min_v = val;
       else if (strcmp(key, "MAX") == 0)    data.max_v = val;
