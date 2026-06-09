@@ -8,6 +8,7 @@ namespace Log {
   State logger; 
   
   void setup() {
+    logger.enabled = true;
     if (LittleFS.begin(true)) {
       Serial.println("[LOG] LittleFS Initialized");
     } else {

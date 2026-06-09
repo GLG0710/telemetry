@@ -2,6 +2,8 @@
 
 #include <Arduino.h>
 
+#include "state/data.h"
+
 namespace Control {
   enum Source {
     LOCAL,

@@ -1,5 +1,6 @@
 #include <LittleFS.h>
 #include <WiFi.h>
+#include <cmath>
 
 #include "storage.h"
 #include "controller/control.h"
@@ -139,7 +140,6 @@ void appendCsvRow() {
   if (!Log::logger.enabled) return;
 
   rotateIfNeeded();
-
   openLogFile();
   if (!Log::logger.isOpen) return;
 
@@ -155,10 +155,11 @@ void appendCsvRow() {
   char ackSafe[64];
   strncpy(ackSafe, ack.last, sizeof(ackSafe));
   ackSafe[sizeof(ackSafe)-1] = '\0';
-
   sanitize(ackSafe);
 
-  int written = Log::logger.file.printf(
+  // Buffer para a linha CSV
+  char lineBuffer[512];  
+  int written = snprintf(lineBuffer, sizeof(lineBuffer),
       "%s,%lu,%.3f,%.1f,%s,%s,%.1f,%.2f,%.3f,%.3f,%.3f,%.3f,%.1f,%u,%u,%.0f,%.0f,%d,%s,%u,%lu,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%s\n",
       timeStamp,
       now,
@@ -188,22 +189,26 @@ void appendCsvRow() {
       config.slew_up,
       config.slew_dn,
       config.zero_timeout_ms,
-      ackSafe  
+      ackSafe
   );
+
+  if (written > 0 && written < (int)sizeof(lineBuffer)) {
+    // Escreve no arquivo
+    Log::logger.file.print(lineBuffer);
+    // Escreve no Serial Monitor
+    Serial.print(lineBuffer);
+    
+    Log::logger.cached_size += written;
+  }
 
   //Flush
   static uint32_t lastFlush = 0;
   static uint16_t lines = 0;
-
   lines++;
 
   if (lines >= 10 || millis() - lastFlush > 5000) {
       Log::logger.file.flush();
       lastFlush = millis();
       lines = 0;
-  }
-
-  if (written > 0 && written < 512) { 
-    Log::logger.cached_size += written;
   }
 }
