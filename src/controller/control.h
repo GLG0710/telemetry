@@ -2,25 +2,25 @@
 
 #include <Arduino.h>
 
-#include "state/data.h"
+#include "core/telemetry.h"
 
 namespace Control {
-  enum Source {
-    LOCAL,
-    BLE,
-    MQTT
-  };
+	enum class Source {
+		LOCAL,
+		BLE,
+		MQTT
+	};
 
-  struct State {
-    Source src = LOCAL;          
-    unsigned long last_ms = 0;
-  };
-  extern State state;
+	struct State {
+		Source src = LOCAL;          
+		uint32_t last_ms = 0;
+	};
+	extern State state;
 
-  static constexpr unsigned long TIMEOUT_MS = 2000;  
+	constexpr uint32_t TIMEOUT_MS = 2000;  
 
-  // funções de controle
-  void setSource(Source src);
-  const char* getSource();
-  void loop();
+	// funções de controle
+	void setSource(Source src);
+	const char* getSource();
+	void loop();
 }

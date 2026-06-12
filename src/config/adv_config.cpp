@@ -1,3 +1,9 @@
+/*
+    Configuração de PWM, Rampa e Rpm via MQTT
+*/
+
 #include "adv_config.h"
 
-AdvancedConfig config;
+namespace Advanced {
+    Config config;
+}

@@ -9,47 +9,13 @@
 #include "protocol/parser.h"
 #include "system/ota.h"
 
-#include "comm/ble/ble.h"
-#include "comm/lora/lora.h"
-#include "comm/mqtt/mqtt.h"
+#include "communication/ble/ble.h"
+#include "communication/lora/lora.h"
+#include "communication/mqtt/mqtt.h"
 
 void setupTime() {
     configTime(0, 0, "pool.ntp.org", "time.google.com");
 }
-
-/*
-// Ambas as variáveis e a função são para log enquanto estivermos com erro de recepção dos dados do mega, retirar tudo quando erro for resolvido (ou deixar como comentário)
-static uint32_t lastDiagnostic = 0;
-static uint32_t lastMegaData = 0;
-
-void diagnostic() {
-    uint32_t now = millis();
-
-    if (now - lastDiagnostic >= 5000) {
-        lastDiagnostic = now;
-
-        Serial.printf(
-            "[WiFi] Status: %s | RSSI: %d\n",
-            WiFi.status() == WL_CONNECTED ? "Connected" : "Disconnected",
-            WiFi.RSSI()
-        );
-
-        uint32_t elapsed = now - lastMegaData;
-
-        if (elapsed < 5000) {
-            Serial.printf(
-                "[UART] Mega OK - last data received %lu ms ago\n",
-                elapsed
-            );
-        } else {
-            Serial.printf(
-                "[UART] WARNING - no data from Mega for %lu ms\n",
-                elapsed
-            );
-        }
-    }
-}
-*/
 
 void setup() {
     Serial.begin(115200);
@@ -82,14 +48,10 @@ void setup() {
     Ble::setup();   
 
     Serial.println("[BOOT] System Ready!\n");
-    //lastMegaData = millis();
 }
 
 void loop(){
-    // diagnostic();
-
     while (Uart::Arduino.available()) {
-        //lastMegaData = millis();
         protocolFeedByte(Uart::Arduino.read());
     }
 

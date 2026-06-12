@@ -1,8 +1,8 @@
-#include "parser.h"
-#include "state/data.h"
-#include "state/ack.h"
+/*
+	Processa e atualiza os dados recebidos pelo mega
+*/
 
-// Processa e atualiza os dados recebidos
+#include "parser.h"
 
 static char lineBuffer[400];
 static uint16_t pos = 0;
@@ -36,21 +36,21 @@ static void processLine(char *line) {
 			float val = atof(value);
 
 			// Caso mude aqui, mude no Mega tambem
-			if      (strcmp(key, "V") == 0)      data.volts = val;
-			else if (strcmp(key, "Pct") == 0)    data.pct = val;
-			else if (strcmp(key, "Temp") == 0)   data.temp = (strcmp(value,"NaN")==0)?NAN:val;
-			else if (strcmp(key, "Humi") == 0)   data.humi = (strcmp(value,"NaN")==0)?NAN:val;
-			else if (strcmp(key, "RPM") == 0)    data.rpm = val;
-			else if (strcmp(key, "Speed") == 0)  data.speed_kmh = val;
-			else if (strcmp(key, "IBAT") == 0)   data.current_bat_a = val;
-			else if (strcmp(key, "IMOT") == 0)   data.current_mot_a = val;
-			else if (strcmp(key, "MIN") == 0)    data.min_v = val;
-			else if (strcmp(key, "MAX") == 0)    data.max_v = val;
-			else if (strcmp(key, "WHEEL") == 0)  data.wheel_cm = val;
-			else if (strcmp(key, "PPR") == 0)    data.ppr = (uint8_t)atoi(value);
-			else if (strcmp(key, "OVR") == 0)    data.override_enabled = atoi(value) != 0;
-			else if (strcmp(key, "OVRPCT") == 0) data.override_pct = val;
-			else if (strcmp(key, "MAXPCT") == 0) data.max_pct = val;
+			if      (strcmp(key, "V") == 0)      Telemetry::data.volts = val;
+			else if (strcmp(key, "Pct") == 0)    Telemetry::data.pct = val;
+			else if (strcmp(key, "Temp") == 0)   Telemetry::data.temp = (strcmp(value,"NaN")==0)?NAN:val;
+			else if (strcmp(key, "Humi") == 0)   Telemetry::data.humi = (strcmp(value,"NaN")==0)?NAN:val;
+			else if (strcmp(key, "RPM") == 0)    Telemetry::data.rpm = val;
+			else if (strcmp(key, "Speed") == 0)  Telemetry::data.speed_kmh = val;
+			else if (strcmp(key, "IBAT") == 0)   Telemetry::data.current_bat_a = val;
+			else if (strcmp(key, "IMOT") == 0)   Telemetry::data.current_mot_a = val;
+			else if (strcmp(key, "MIN") == 0)    Telemetry::data.min_v = val;
+			else if (strcmp(key, "MAX") == 0)    Telemetry::data.max_v = val;
+			else if (strcmp(key, "WHEEL") == 0)  Telemetry::data.wheel_cm = val;
+			else if (strcmp(key, "PPR") == 0)    Telemetry::data.ppr = (uint8_t)atoi(value);
+			else if (strcmp(key, "OVR") == 0)    Telemetry::data.override_enabled = atoi(value) != 0;
+			else if (strcmp(key, "OVRPCT") == 0) Telemetry::data.override_pct = val;
+			else if (strcmp(key, "MAXPCT") == 0) Telemetry::data.max_pct = val;
 		}
 
 		tok = strtok_r(NULL, " ", &saveptr);

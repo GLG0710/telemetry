@@ -1,8 +1,16 @@
 #pragma once
 
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
+
+#include "core/telemetry.h"
+#include "core/ack.h"
+#include "controller/control.h"
+#include "config/uart.h"
+#include "config/adv_config.h"
+#include "service/logger.h"
 
 namespace Mqtt {
   // ===================== CONFIG =====================

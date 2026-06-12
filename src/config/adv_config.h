@@ -1,10 +1,24 @@
-struct AdvancedConfig {
-	float pwm_hz = 1000.0f;
-  	float start_min_pct = 8.0f;
-  	float rapid_ms = 250.0f;
-  	float rapid_up = 150.0f;
-  	float slew_up = 40.0f;
-  	float slew_dn = 60.0f;
-  	float zero_timeout_ms = 600.0f;
-};
-extern AdvancedConfig config;
+#pragma once
+
+#include <Arduino.h>
+
+namespace Advanced {
+	// Alguns dos tipos estão diferentes do mega (pwm, startmin, rapidRamp), conversões ocorrem entre esp e mega
+	// Para corrigir isso tem que mudar aqui e o accelerator_config_mqtt.html
+	
+	struct Config {
+		// PWM
+		float pwm_hz = 1000.0f; // Valor default
+
+		// RAMPA
+		float rapidRamp = 250;
+		float rapidUp = 150.0f;
+		float slewUp = 40.0f;
+		float slewDown = 60.0f;
+		float startMin = 8;
+
+		// Rpm
+		float zeroTimeoutMs = 600; // ms (No mega é em us, por isso precisa ser float)
+	};
+	extern Config config;
+}

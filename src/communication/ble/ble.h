@@ -2,6 +2,10 @@
 
 #include <Arduino.h>
 #include <NimBLEDevice.h>
+#include <ArduinoJSON.h>
+
+#include "controller/control.h"
+#include "core/telemetry.h"
 
 namespace Ble {
 	struct State {

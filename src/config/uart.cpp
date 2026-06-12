@@ -1,6 +1,10 @@
-#include <Arduino.h>
+/*
+    Inicializa interfaces UART
+    Arduino: comunicação com o Arduino Mega
+    Lora: comunicação com o módulo LoRa
+*/
+
 #include "uart.h"
-#include "pins.h"
 
 namespace Uart {
     HardwareSerial Arduino(1);

@@ -1,12 +1,7 @@
-#include <Arduino.h>
-#include <NimBLEDevice.h>
-#include <ArduinoJSON.h>
+// Bluetooth Low Energy, comunicação via bluetooth de curto alcance
 
 #include "ble.h"
-#include "controller/control.h"
-#include "state/data.h"
 
-// Bluetooth Low Energy, comunicação via bluetooth de curto alcance
 namespace Ble {
     State state;
 }
@@ -38,8 +33,8 @@ private:
             Ble::state.mode = mode;
             
             if (mode == 0) {
-                data.override_enabled = false;
-                Control::setSource(Control::LOCAL);
+                Telemetry::data.override_enabled = false;
+                Control::setSource(Control::Source::LOCAL);
             } else {
                 Control::state.last_ms = millis();
             }
@@ -52,9 +47,9 @@ private:
             pct = constrain(pct, 0, 100);
             
             Ble::state.pct = pct;
-            data.override_enabled = true;
-            data.override_pct = pct;
-            Control::setSource(Control::BLE);
+            Telemetry::data.override_enabled = true;
+            Telemetry::data.override_pct = pct;
+            Control::setSource(Control::Source::BLE);
             return true;
         }
         
@@ -94,8 +89,8 @@ public:
         Ble::state.mode = newMode;
 
         if (newMode == 0) {
-            data.override_enabled = false;
-            Control::setSource(Control::LOCAL);
+            Telemetry::data.override_enabled = false;
+            Control::setSource(Control::Source::LOCAL);
             Serial.println("[BLE] Local Mode activated");
         } else {
             Serial.printf("[BLE] BLE Mode %d activated\n", newMode);
@@ -107,9 +102,9 @@ public:
         int pct = constrain(doc["pct"].as<int>(), 0, 100);
 
         Ble::state.pct        = pct;
-        data.override_enabled = true;
-        data.override_pct     = Ble::state.pct;
-        Control::setSource(Control::BLE);
+        Telemetry::data.override_enabled = true;
+        Telemetry::data.override_pct     = Ble::state.pct;
+        Control::setSource(Control::Source::BLE);
         Serial.printf("[BLE] Override PCT: %d%%\n", pct);
         }
     }
@@ -121,16 +116,16 @@ bool sendSpeedo() {
     JsonDocument doc;
     
     doc["mode"] = Ble::state.mode;
-    doc["speed_kmh"] = data.speed_kmh;
-    doc["rpm"] = data.rpm;
-    doc["pct"] = data.pct;
+    doc["speed_kmh"] = Telemetry::data.speed_kmh;
+    doc["rpm"] = Telemetry::data.rpm;
+    doc["pct"] = Telemetry::data.pct;
     
-    doc["temp"] = isnan(data.temp) ? 0.0f : data.temp;
-    doc["current"] = isnan(data.current_bat_a) ? 0.0f : data.current_bat_a;
+    doc["temp"] = isnan(Telemetry::data.temp) ? 0.0f : Telemetry::data.temp;
+    doc["current"] = isnan(Telemetry::data.current_bat_a) ? 0.0f : Telemetry::data.current_bat_a;
     
-    doc["override"] = data.override_enabled;
-    if (data.override_enabled) {
-        doc["override_pct"] = data.override_pct;
+    doc["override"] = Telemetry::data.override_enabled;
+    if (Telemetry::data.override_enabled) {
+        doc["override_pct"] = Telemetry::data.override_pct;
     }
 
     char buffer[160];

@@ -1,6 +1,10 @@
-#include <ArduinoOTA.h>
-#include <WiFi.h>
-#include <ESPmDNS.h>
+/*
+    Permite fazer compilação de código sem precisar de cabo, conectando na mesma rede pela IDE
+    Host: telemetry-s3
+    Senha: espota
+*/
+
+#include "ota.h"
 
 namespace Ota {
     void setup() {
